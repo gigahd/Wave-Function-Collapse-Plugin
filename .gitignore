@@ -1,0 +1,11 @@
+# Project place file
+/*.rbxlx
+/*.rbxl
+# Rojo files
+/default.project.json
+/*.toml
+
+
+# Roblox Studio lock files
+/*.rbxlx.lock
+/*.rbxl.lock
