@@ -107,6 +107,10 @@ local function changeColor()
 	end
 end
 
+local function selectedIsValid(selected: {Instance}): boolean
+	return selected and selected[1] and selected[1]:IsA("Model")
+end
+
 local function addModelToFrame(frame: ViewportFrame, model: Model)
 	if frame:FindFirstChild("Model") then
 		frame.Model:Destroy()
@@ -150,6 +154,8 @@ local function validTileConfig()
 end
 
 local function openConnectionsFrame(tileFrame: Frame, tile: Folder)
+	if tileAdderIsOpen then return end
+
 	tileConnectionsIsOpen = true
 	tileConnected = tile
 
@@ -157,7 +163,7 @@ local function openConnectionsFrame(tileFrame: Frame, tile: Folder)
 	for connectionType, connectionValue in pairs(connections) do
 		TileConnectionsList[connectionType].ConnectionType.Text = connectionValue	
 	end
-	TileConnectionsFrame:TweenSize(UDim2.fromScale(.5,.5),Enum.EasingDirection.InOut,Enum.EasingStyle.Quad,.5,true)
+	TileConnectionsFrame:TweenSize(UDim2.fromScale(.5,.5),Enum.EasingDirection.InOut,Enum.EasingStyle.Quad,.2,true)
 
 	TileConnectionsFrame.Visible = true
 end
@@ -166,9 +172,10 @@ local function closeConnectionsFrame()
 	tileConnectionsIsOpen = false
 	tileConnected = nil
 	
-	TileConnectionsFrame:TweenSize(UDim2.new(),Enum.EasingDirection.InOut,Enum.EasingStyle.Quad,.5,true)
-
-	TileConnectionsFrame.Visible = false
+	TileConnectionsFrame:TweenSize(UDim2.new(),Enum.EasingDirection.InOut,Enum.EasingStyle.Quad,.2,true, function()
+		TileConnectionsFrame.Visible = false
+	end)
+	
 end
 
 local function addTileToList(Tile: Folder) 
@@ -190,11 +197,34 @@ local function addTileToList(Tile: Folder)
 		openConnectionsFrame(TileFrame, Tile)
 	end)
 	TileFrame.RemoveButton.MouseButton1Click:Connect(function()
+		if tileConnectionsIsOpen and tileConnected == Tile then
+			closeConnectionsFrame()
+		end
 		Tile:Destroy()
 		TileFrame:Destroy()
 	end)
 	TileFrame.Parent = TilesList
 	TileFrame.Visible = true
+end
+
+local function onTilesUpdate()
+	local Tiles: Folder = ServerStorage.Tiles
+	Tiles.ChildAdded:Connect(function(child)
+		addTileToList(child)
+	end)
+	Tiles.ChildRemoved:Connect(function(child)
+		for _, TileFrame in pairs(TilesList:GetChildren()) do
+			if not TileFrame:IsA("Frame") then continue end
+			
+			if TileFrame.Value.Value == child then
+				if tileConnectionsIsOpen and tileConnected == child then
+					closeConnectionsFrame()
+				end
+				child:Destroy()
+				TileFrame:Destroy()
+			end
+		end
+	end)
 end
 
 local function addTile()
@@ -203,6 +233,7 @@ local function addTile()
 		Tiles = Instance.new("Folder")
 		Tiles.Name = "Tiles"
 		Tiles.Parent = ServerStorage
+		onTilesUpdate()
 	end
 	
 	local Tile = Instance.new("Folder")
@@ -230,7 +261,8 @@ local function resetTileAdderFrame()
 end
 
 local function openTileAdder()
-	--TileModelFrame = Instance.new("Frame")
+	if tileConnectionsIsOpen then return end
+	
 	TileAdderFrame:TweenPosition(UDim2.fromScale(.5,.5),Enum.EasingDirection.Out,Enum.EasingStyle.Quad,.5,false)
 end
 
@@ -269,7 +301,7 @@ AddTileButton.MouseButton1Click:Connect(function()
 end)
 
 function selectModel(selected)
-	if selected and selected[1] and selected[1]:IsA("Model") then
+	if selectedIsValid(selected) then
 		modelSelectionMode = false
 		
 
@@ -330,6 +362,7 @@ if ServerStorage:FindFirstChild("Tiles") then
 	for _, tile in pairs(ServerStorage.Tiles:GetChildren()) do
 		addTileToList(tile)
 	end
+	onTilesUpdate()
 end
 
 Studio.Changed:Connect(function()
